@@ -4,7 +4,7 @@ CXXFLAGS = -std=c++11 -Wall -Wextra -O2
 TARGET = f2avr
 
 # Source files
-SRCS = main.cpp lexer.cpp parser.cpp
+SRCS = src/main.cpp src/lexer.cpp src/parser.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 # Header files for dependency tracking
