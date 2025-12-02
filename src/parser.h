@@ -5,21 +5,33 @@
 #include "token.h"
 #include <string>
 #include <map>
+#include <vector>
 #include <sstream>
+
+struct SubroutineInfo {
+    std::string name;
+    std::vector<std::string> params;
+    std::string returnType;  // Empty for subroutines
+};
 
 class Parser {
 private:
     Lexer lexer;
     Token currentToken;
     std::stringstream output;
+    std::stringstream functionDecls;
     std::map<std::string, std::string> varTypes;
+    std::map<std::string, SubroutineInfo> subroutines;
     int indentLevel;
+    bool inSubroutine;
     
     void indent();
     void advance();
     void expect(TokenType type);
     
     void parseProgram();
+    void parseSubroutine();
+    void parseFunction();
     void parseDeclarations();
     void parseStatements();
     void parseStatement();
@@ -28,6 +40,9 @@ private:
     void parseDoWhile();
     void parsePrint();
     void parseCall();
+    void parseGoto();
+    void parseLabel();
+    void parseReturn();
     void parsePinMode();
     void parseDigitalWrite();
     void parseDigitalRead();
@@ -42,4 +57,3 @@ public:
 };
 
 #endif // PARSER_H
-
