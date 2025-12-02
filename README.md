@@ -1,6 +1,6 @@
 # f2avr
 A simple fortran 90 compiler targeting avr-gcc, to effectivly produce binaries for Adriunos. 
-
+F2AVR is the world’s first Fortran-to-C compiler designed to run on Arduino hardware.
 The F2AVR compiler translates a subset of Fortran 90 into C code optimized for AVR microcontrollers. It focuses on embedded systems programming with direct hardware access.
 
 ## Table of Contents
