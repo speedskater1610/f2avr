@@ -138,42 +138,42 @@ void Parser::parseStatements() {
 }
 
 void Parser::parseStatement() {
-    // Check for labels - only at the start of a statement
-    // Labels must be standalone numbers on a line, optionally followed by CONTINUE
-    if (currentToken.type == TOK_NUMBER) {
-        // This is a label
-        std::string label = currentToken.value;
-        expect(TOK_NUMBER);
+    // Check for label (identifier followed by colon)
+    if (currentToken.type == TOK_IDENTIFIER) {
+        // Look ahead to see if this is a label
+        Token saved = currentToken;
+        std::string name = currentToken.value;
+        advance();
         
-        // Output the label
-        if (indentLevel > 0) {
-            indentLevel--;
+        if (currentToken.type == TOK_COLON) {
+            // It's a label
+            expect(TOK_COLON);
+            
+            if (indentLevel > 0) {
+                indentLevel--;
+            }
+            indent();
+            output << name << ":;\n";
+            indentLevel++;
+            
+            // There might be a statement after the label
+            if (currentToken.type != TOK_END && 
+                currentToken.type != TOK_EOF &&
+                currentToken.type != TOK_ELSE &&
+                currentToken.type != TOK_ENDIF &&
+                currentToken.type != TOK_ENDDO) {
+                parseStatement();
+            }
+            return;
+        } else {
+            // Not a label, it's an assignment - restore state
+            currentToken = saved;
+            parseAssignment();
+            return;
         }
-        indent();
-        output << "label_" << label << ":;\n";
-        indentLevel++;
-        
-        // CONTINUE is optional after a label
-        if (currentToken.type == TOK_CONTINUE) {
-            advance();
-        }
-        
-        // After the label, there might be another statement on the same logical line
-        // Check if there's a statement following
-        if (currentToken.type == TOK_IDENTIFIER ||
-            currentToken.type == TOK_IF ||
-            currentToken.type == TOK_DO ||
-            currentToken.type == TOK_CALL ||
-            currentToken.type == TOK_GOTO ||
-            currentToken.type == TOK_RETURN) {
-            parseStatement();  // Parse the statement after the label
-        }
-        return;
     }
     
-    if (currentToken.type == TOK_IDENTIFIER) {
-        parseAssignment();
-    } else if (currentToken.type == TOK_IF) {
+    if (currentToken.type == TOK_IF) {
         parseIf();
     } else if (currentToken.type == TOK_DO) {
         parseDoWhile();
@@ -185,8 +185,6 @@ void Parser::parseStatement() {
         parseGoto();
     } else if (currentToken.type == TOK_RETURN) {
         parseReturn();
-    } else if (currentToken.type == TOK_CONTINUE) {
-        advance();  // CONTINUE is just a label target, no code needed
     } else {
         advance();
     }
@@ -461,27 +459,10 @@ void Parser::parseFunction() {
 void Parser::parseGoto() {
     expect(TOK_GOTO);
     std::string label = currentToken.value;
-    expect(TOK_NUMBER);
+    expect(TOK_IDENTIFIER);
     
     indent();
-    output << "goto label_" << label << ";\n";
-}
-
-void Parser::parseLabel() {
-    std::string label = currentToken.value;
-    expect(TOK_NUMBER);
-    
-    // Decrease indent for label
-    if (indentLevel > 0) {
-        indentLevel--;
-    }
-    indent();
-    output << "label_" << label << ":;\n";
-    indentLevel++;
-    
-    if (currentToken.type == TOK_CONTINUE) {
-        advance();
-    }
+    output << "goto " << label << ";\n";
 }
 
 void Parser::parseReturn() {
