@@ -41,7 +41,6 @@ private:
     void parsePrint();
     void parseCall();
     void parseGoto();
-    void parseLabel();
     void parseReturn();
     void parsePinMode();
     void parseDigitalWrite();
