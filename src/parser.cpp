@@ -75,6 +75,8 @@ void Parser::parseProgram() {
 }
 
 void Parser::parseDeclarations() {
+    std::map<std::string, bool> declaredVars;  // Track declared variables
+    
     while (currentToken.type == TOK_INTEGER || 
            currentToken.type == TOK_REAL || 
            currentToken.type == TOK_LOGICAL) {
@@ -93,7 +95,18 @@ void Parser::parseDeclarations() {
         
         do {
             std::string varName = currentToken.value;
+            
+            // Skip if already declared
+            if (declaredVars.find(varName) != declaredVars.end()) {
+                expect(TOK_IDENTIFIER);
+                if (currentToken.type == TOK_COMMA) {
+                    advance();
+                }
+                continue;
+            }
+            
             varTypes[varName] = cType;
+            declaredVars[varName] = true;
             expect(TOK_IDENTIFIER);
             
             indent();
@@ -120,10 +133,44 @@ void Parser::parseStatements() {
 }
 
 void Parser::parseStatement() {
-    // Check for labels (numbers followed by CONTINUE or statement)
+    // Check for labels (numbers followed by CONTINUE or as standalone statement)
+    // A label must be at the beginning of a statement, not after an assignment operator
     if (currentToken.type == TOK_NUMBER) {
-        parseLabel();
-        return;
+        // Peek ahead to see if this is really a label
+        // Save current position
+        Token saved = currentToken;
+        advance();
+        
+        // If followed by CONTINUE or another statement keyword, it's a label
+        if (currentToken.type == TOK_CONTINUE || 
+            currentToken.type == TOK_IF ||
+            currentToken.type == TOK_DO ||
+            currentToken.type == TOK_CALL ||
+            currentToken.type == TOK_GOTO ||
+            currentToken.type == TOK_IDENTIFIER) {
+            // It's a label - restore and parse it
+            currentToken = saved;
+            // Re-advance to get past the number
+            std::string label = currentToken.value;
+            expect(TOK_NUMBER);
+            
+            // Decrease indent for label
+            indentLevel--;
+            indent();
+            output << "label_" << label << ":;\n";
+            indentLevel++;
+            
+            if (currentToken.type == TOK_CONTINUE) {
+                advance();
+            }
+            return;
+        } else {
+            // Not a label, restore and continue
+            // This shouldn't happen in valid code - numbers alone aren't valid statements
+            currentToken = saved;
+            advance();
+            return;
+        }
     }
     
     if (currentToken.type == TOK_IDENTIFIER) {
@@ -427,7 +474,9 @@ void Parser::parseLabel() {
     expect(TOK_NUMBER);
     
     // Decrease indent for label
-    indentLevel--;
+    if (indentLevel > 0) {
+        indentLevel--;
+    }
     indent();
     output << "label_" << label << ":;\n";
     indentLevel++;
