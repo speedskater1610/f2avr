@@ -16,6 +16,43 @@ The F2AVR compiler translates a subset of Fortran 90 into C code optimized for A
 
 ---
 
+## Compiling and uploading fortran code to a arduino
+### Linux
+*the f2avr compiler is depenedent on avr-gcc and avrdude to create binaries and upload them to the arduino; so make sure that they are installed before doing any of these*
+- first either get the compiled version of the f2avr compiler from `releases` or follow these steps
+  - clone the github repo `git clone https://www.github.com/speedskater1610/f2avr`
+  - go into the repo `cd f2avr`
+  - build the project into a exacutable `make`
+- After you have the built exacutable the `arduino_upload.sh` script is very useful for building and uploading programs, to make this a a exacutable so you can run it do the following: `chmod +x arduino_upload.sh `.
+- This should allow you to be able to run `./arduino_upload.sh tests/led_blink.f90` which if a arduino in plugged in the fortran program should upload.
+- If you run into the problem of running the above command and get the following, you should run `sudo usermod -a -G dialout $USER` or on arch/manjaro `sudo usermod -aG uucp $USER` then log out and log back in, or reboot.
+  ```sh
+  OS error: cannot open port /dev/ttyUSB0: Permission denied
+  Error: unable to open port /dev/ttyUSB0 for programmer arduino
+
+  Avrdude done.  Thank you.
+  [ERROR] Upload failed!
+  ```
+
+
+### Windows
+- download the f2avr compiler form [releases](https://github.com/speedskater1610/f2avr/releases), *Make sure that it is the windows version*
+- install the tools needed to run along side this project (`avrdude` & `avr-gcc`) the easiest way to install them is using msys2
+  - if you done already have msys2 installed follow the following steps.
+  - get msys2 from [here](msys2.org)
+  - Run installer -> accept defaults
+  - Open MSYS2 MSYS terminal (Not UCRT64 or MINGW64 yet)
+  - update everything `pacman -Syu`
+  - IMPORTANT: The terminal may tell you to close and reopen MSYS2. Do that, then run: `pacman -Syu` again until it says everything is up to date.
+  - Install avr-gcc and avrdude `pacman -S avr-gcc avrdude`
+  - now run `avr-gcc --version` and `avrdude --version`, you should get something telling you what version it is and not a error
+  - *NOTE: instead of using the windows cmd or powershell use the `msys2 msys` shell; It could be useful to add this to your task-bar or homepage*
+- Prepare your project by adding `f2avr.exe` and `arduino_upload.sh` in your project folder
+- Make the script exacutable `chmod +x arduino_upload.sh`
+- Then while inside of your project folder in `msys2 msys` shell go to your project folder, use `cd filePath/project_folder` to get there
+- Next run `./arduino_upload.sh FORTRAN_FILE.f90` with your correct fortran file name, This should upload the code to your arduino.
+- *NOTE: If you run into any issues please open up a issue on this github repo so I can either fix it or help you where you went wrong, please provide as much information as possible*
+   
 ## Program Structure
 
 Every Fortran program must follow this structure:
