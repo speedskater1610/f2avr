@@ -4,6 +4,7 @@
 #include <sstream>
 
 int main(int argc, char* argv[]) {
+    // read through command line to get the file
     if (argc != 3) {
         std::cerr << "Usage: " << argv[0] << " <input.f90> <output.c>\n";
         return 1;
