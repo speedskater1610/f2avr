@@ -679,7 +679,7 @@ Possible future additions to the compiler:
 
 ## Compiler Information
 
-**Version:** 0.1.0  
+**Version:** 0.1.1
 **Language Standard:** Fortran 90 (subset)  
 **Target:** AVR microcontrollers  
 **Output:** ANSI C (avr-gcc)  
