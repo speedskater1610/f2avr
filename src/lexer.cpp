@@ -114,6 +114,11 @@ Token Lexer::nextToken() {
         else if (id == "HIGH") tok.type = TOK_HIGH;
         else if (id == "LOW") tok.type = TOK_LOW;
         else if (id == "CALL") tok.type = TOK_CALL;
+        else if (id == "SUBROUTINE") tok.type = TOK_SUBROUTINE;
+        else if (id == "FUNCTION") tok.type = TOK_FUNCTION;
+        else if (id == "RETURN") tok.type = TOK_RETURN;
+        else if (id == "GOTO") tok.type = TOK_GOTO;
+        else if (id == "CONTINUE") tok.type = TOK_CONTINUE;
         else {
             tok.type = TOK_IDENTIFIER;
             tok.value = id;
