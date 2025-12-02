@@ -412,28 +412,25 @@ PROGRAM traffic_light
   CALL PINMODE(B, 4, OUTPUT)  ! Yellow
   CALL PINMODE(B, 3, OUTPUT)  ! Green
 
-10 CONTINUE
+start:
   ! Red
   CALL DIGITALWRITE(B, 5, HIGH)
   CALL DIGITALWRITE(B, 4, LOW)
   CALL DIGITALWRITE(B, 3, LOW)
   CALL DELAY(3000)
-  
-20 CONTINUE
+
   ! Yellow
   CALL DIGITALWRITE(B, 5, LOW)
   CALL DIGITALWRITE(B, 4, HIGH)
   CALL DIGITALWRITE(B, 3, LOW)
   CALL DELAY(1000)
-  
-30 CONTINUE
   ! Green
   CALL DIGITALWRITE(B, 5, LOW)
   CALL DIGITALWRITE(B, 4, LOW)
   CALL DIGITALWRITE(B, 3, HIGH)
   CALL DELAY(3000)
   
-  GOTO 10  ! Loop forever
+  GOTO start  ! Loop forever
 END
 ```
 
@@ -647,6 +644,7 @@ The compiler provides basic error messages:
 - **Avoid division**: Use bit shifts for powers of 2
 - **Minimize variables**: Limited RAM on AVR
 - **Inline calculations**: Reduces stack usage
+- **goto instead of infinate while loops**: while loops when a condition before running each time.
 
 ### Code Organization
 
