@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cstdlib>
 
-Parser::Parser(const std::string& source) : lexer(source), indentLevel(0) {
+Parser::Parser(const std::string& source) : lexer(source), indentLevel(0), inSubroutine(false) {
     advance();
 }
 
@@ -27,6 +27,15 @@ void Parser::expect(TokenType type) {
 }
 
 void Parser::parseProgram() {
+    // Parse subroutines and functions first
+    while (currentToken.type == TOK_SUBROUTINE || currentToken.type == TOK_FUNCTION) {
+        if (currentToken.type == TOK_SUBROUTINE) {
+            parseSubroutine();
+        } else {
+            parseFunction();
+        }
+    }
+    
     expect(TOK_PROGRAM);
     std::string progName = currentToken.value;
     expect(TOK_IDENTIFIER);
@@ -44,6 +53,12 @@ void Parser::parseProgram() {
     output << "#define SET_LOW(port, pin) PORT##port &= ~(1 << pin)\n";
     output << "#define READ_PIN(port, pin) ((PIN##port >> pin) & 1)\n\n";
     
+    // Add function declarations
+    if (!functionDecls.str().empty()) {
+        output << "// Forward declarations\n";
+        output << functionDecls.str() << "\n";
+    }
+    
     output << "int main(void) {\n";
     indentLevel++;
     
@@ -53,7 +68,7 @@ void Parser::parseProgram() {
     output << "\n";
     indentLevel--;
     indent();
-    output << "  return 0;\n";
+    output << "return 0;\n";
     output << "}\n";
     
     expect(TOK_END);
@@ -98,12 +113,19 @@ void Parser::parseDeclarations() {
 void Parser::parseStatements() {
     while (currentToken.type != TOK_END && currentToken.type != TOK_EOF &&
            currentToken.type != TOK_ELSE && currentToken.type != TOK_ENDIF &&
-           currentToken.type != TOK_ENDDO) {
+           currentToken.type != TOK_ENDDO && currentToken.type != TOK_SUBROUTINE &&
+           currentToken.type != TOK_FUNCTION) {
         parseStatement();
     }
 }
 
 void Parser::parseStatement() {
+    // Check for labels (numbers followed by CONTINUE or statement)
+    if (currentToken.type == TOK_NUMBER) {
+        parseLabel();
+        return;
+    }
+    
     if (currentToken.type == TOK_IDENTIFIER) {
         parseAssignment();
     } else if (currentToken.type == TOK_IF) {
@@ -114,6 +136,12 @@ void Parser::parseStatement() {
         parsePrint();
     } else if (currentToken.type == TOK_CALL) {
         parseCall();
+    } else if (currentToken.type == TOK_GOTO) {
+        parseGoto();
+    } else if (currentToken.type == TOK_RETURN) {
+        parseReturn();
+    } else if (currentToken.type == TOK_CONTINUE) {
+        advance();  // CONTINUE is just a label target, no code needed
     } else {
         advance();
     }
@@ -202,6 +230,7 @@ void Parser::parsePrint() {
 void Parser::parseCall() {
     expect(TOK_CALL);
     
+    // Check for built-in GPIO functions
     if (currentToken.type == TOK_PINMODE) {
         parsePinMode();
     } else if (currentToken.type == TOK_DIGITALWRITE) {
@@ -210,9 +239,212 @@ void Parser::parseCall() {
         parseDigitalRead();
     } else if (currentToken.type == TOK_DELAY) {
         parseDelay();
+    } else if (currentToken.type == TOK_IDENTIFIER) {
+        // User-defined subroutine call
+        std::string subName = currentToken.value;
+        expect(TOK_IDENTIFIER);
+        
+        indent();
+        output << subName << "(";
+        
+        if (currentToken.type == TOK_LPAREN) {
+            expect(TOK_LPAREN);
+            
+            bool first = true;
+            while (currentToken.type != TOK_RPAREN) {
+                if (!first) {
+                    output << ", ";
+                    expect(TOK_COMMA);
+                }
+                first = false;
+                
+                if (currentToken.type == TOK_IDENTIFIER) {
+                    output << currentToken.value;
+                    advance();
+                } else if (currentToken.type == TOK_NUMBER) {
+                    output << currentToken.value;
+                    advance();
+                } else {
+                    parseExpression();
+                }
+            }
+            
+            expect(TOK_RPAREN);
+        }
+        
+        output << ");\n";
     } else {
         std::cerr << "Unknown subroutine at line " << currentToken.line << std::endl;
         exit(1);
+    }
+}
+
+void Parser::parseSubroutine() {
+    expect(TOK_SUBROUTINE);
+    std::string subName = currentToken.value;
+    expect(TOK_IDENTIFIER);
+    
+    SubroutineInfo info;
+    info.name = subName;
+    info.returnType = "";  // Subroutines don't return values
+    
+    // Parse parameters
+    if (currentToken.type == TOK_LPAREN) {
+        expect(TOK_LPAREN);
+        
+        while (currentToken.type != TOK_RPAREN) {
+            std::string paramName = currentToken.value;
+            info.params.push_back(paramName);
+            expect(TOK_IDENTIFIER);
+            
+            if (currentToken.type == TOK_COMMA) {
+                advance();
+            }
+        }
+        
+        expect(TOK_RPAREN);
+    }
+    
+    subroutines[subName] = info;
+    
+    // Generate function declaration
+    functionDecls << "void " << subName << "(";
+    for (size_t i = 0; i < info.params.size(); i++) {
+        if (i > 0) functionDecls << ", ";
+        functionDecls << "int16_t* " << info.params[i];
+    }
+    functionDecls << ");\n";
+    
+    // Generate function definition
+    output << "\nvoid " << subName << "(";
+    for (size_t i = 0; i < info.params.size(); i++) {
+        if (i > 0) output << ", ";
+        output << "int16_t* " << info.params[i];
+    }
+    output << ") {\n";
+    
+    indentLevel++;
+    inSubroutine = true;
+    
+    parseDeclarations();
+    parseStatements();
+    
+    inSubroutine = false;
+    indentLevel--;
+    output << "}\n";
+    
+    expect(TOK_END);
+}
+
+void Parser::parseFunction() {
+    std::string returnType = "int16_t";  // Default
+    
+    if (currentToken.type == TOK_INTEGER) {
+        returnType = "int16_t";
+        advance();
+    } else if (currentToken.type == TOK_REAL) {
+        returnType = "float";
+        advance();
+    } else if (currentToken.type == TOK_LOGICAL) {
+        returnType = "uint8_t";
+        advance();
+    }
+    
+    expect(TOK_FUNCTION);
+    std::string funcName = currentToken.value;
+    expect(TOK_IDENTIFIER);
+    
+    SubroutineInfo info;
+    info.name = funcName;
+    info.returnType = returnType;
+    
+    // Parse parameters
+    if (currentToken.type == TOK_LPAREN) {
+        expect(TOK_LPAREN);
+        
+        while (currentToken.type != TOK_RPAREN) {
+            std::string paramName = currentToken.value;
+            info.params.push_back(paramName);
+            expect(TOK_IDENTIFIER);
+            
+            if (currentToken.type == TOK_COMMA) {
+                advance();
+            }
+        }
+        
+        expect(TOK_RPAREN);
+    }
+    
+    subroutines[funcName] = info;
+    
+    // Generate function declaration
+    functionDecls << returnType << " " << funcName << "(";
+    for (size_t i = 0; i < info.params.size(); i++) {
+        if (i > 0) functionDecls << ", ";
+        functionDecls << "int16_t " << info.params[i];
+    }
+    functionDecls << ");\n";
+    
+    // Generate function definition
+    output << "\n" << returnType << " " << funcName << "(";
+    for (size_t i = 0; i < info.params.size(); i++) {
+        if (i > 0) output << ", ";
+        output << "int16_t " << info.params[i];
+    }
+    output << ") {\n";
+    
+    indentLevel++;
+    inSubroutine = true;
+    
+    // Function return value variable
+    indent();
+    output << returnType << " " << funcName << "_result = 0;\n";
+    
+    parseDeclarations();
+    parseStatements();
+    
+    indent();
+    output << "return " << funcName << "_result;\n";
+    
+    inSubroutine = false;
+    indentLevel--;
+    output << "}\n";
+    
+    expect(TOK_END);
+}
+
+void Parser::parseGoto() {
+    expect(TOK_GOTO);
+    std::string label = currentToken.value;
+    expect(TOK_NUMBER);
+    
+    indent();
+    output << "goto label_" << label << ";\n";
+}
+
+void Parser::parseLabel() {
+    std::string label = currentToken.value;
+    expect(TOK_NUMBER);
+    
+    // Decrease indent for label
+    indentLevel--;
+    indent();
+    output << "label_" << label << ":;\n";
+    indentLevel++;
+    
+    if (currentToken.type == TOK_CONTINUE) {
+        advance();
+    }
+}
+
+void Parser::parseReturn() {
+    expect(TOK_RETURN);
+    
+    indent();
+    if (inSubroutine) {
+        output << "return;\n";
+    } else {
+        output << "return 0;\n";
     }
 }
 
@@ -356,8 +588,29 @@ void Parser::parseFactor() {
         output << currentToken.value;
         advance();
     } else if (currentToken.type == TOK_IDENTIFIER) {
-        output << currentToken.value;
+        std::string name = currentToken.value;
         advance();
+        
+        // Check if it's a function call
+        if (currentToken.type == TOK_LPAREN && subroutines.find(name) != subroutines.end()) {
+            expect(TOK_LPAREN);
+            output << name << "(";
+            
+            bool first = true;
+            while (currentToken.type != TOK_RPAREN) {
+                if (!first) {
+                    output << ", ";
+                    expect(TOK_COMMA);
+                }
+                first = false;
+                parseExpression();
+            }
+            
+            output << ")";
+            expect(TOK_RPAREN);
+        } else {
+            output << name;
+        }
     } else if (currentToken.type == TOK_TRUE) {
         output << "1";
         advance();
