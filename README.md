@@ -648,4 +648,4 @@ Possible future additions to the compiler:
 **Language Standard:** Fortran 90 (subset)  
 **Target:** AVR microcontrollers  
 **Output:** ANSI C (avr-gcc)  
-**License:** GNU GPL v.3
+**License:** GPL v.3
