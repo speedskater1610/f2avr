@@ -51,7 +51,6 @@ void Parser::parseProgram() {
     output << "#include <stdint.h>\n\n";
     
     // Add GPIO helper macros
-    output << "// GPIO helper macros\n";
     output << "#define SET_OUTPUT(port, pin) DDR##port |= (1 << pin)\n";
     output << "#define SET_INPUT(port, pin) DDR##port &= ~(1 << pin)\n";
     output << "#define SET_HIGH(port, pin) PORT##port |= (1 << pin)\n";
