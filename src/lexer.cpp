@@ -156,6 +156,7 @@ Token Lexer::nextToken() {
         case '(': tok.type = TOK_LPAREN; break;
         case ')': tok.type = TOK_RPAREN; break;
         case ',': tok.type = TOK_COMMA; break;
+        case ':': tok.type = TOK_COLON; break;
         case '<':
             if (peek() == '=') {
                 advance();
