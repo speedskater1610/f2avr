@@ -20,7 +20,12 @@ void Parser::advance() {
 
 void Parser::expect(TokenType type) {
     if (currentToken.type != type) {
-        std::cerr << "Parse error at line " << currentToken.line << std::endl;
+        std::cerr << "Parse error at line " << currentToken.line << ": ";
+        std::cerr << "Expected token type " << type << ", but got token type " << currentToken.type;
+        if (!currentToken.value.empty()) {
+            std::cerr << " ('" << currentToken.value << "')";
+        }
+        std::cerr << std::endl;
         exit(1);
     }
     advance();
@@ -133,44 +138,37 @@ void Parser::parseStatements() {
 }
 
 void Parser::parseStatement() {
-    // Check for labels (numbers followed by CONTINUE or as standalone statement)
-    // A label must be at the beginning of a statement, not after an assignment operator
+    // Check for labels - only at the start of a statement
+    // Labels must be standalone numbers on a line, optionally followed by CONTINUE
     if (currentToken.type == TOK_NUMBER) {
-        // Peek ahead to see if this is really a label
-        // Save current position
-        Token saved = currentToken;
-        advance();
+        // This is a label
+        std::string label = currentToken.value;
+        expect(TOK_NUMBER);
         
-        // If followed by CONTINUE or another statement keyword, it's a label
-        if (currentToken.type == TOK_CONTINUE || 
+        // Output the label
+        if (indentLevel > 0) {
+            indentLevel--;
+        }
+        indent();
+        output << "label_" << label << ":;\n";
+        indentLevel++;
+        
+        // CONTINUE is optional after a label
+        if (currentToken.type == TOK_CONTINUE) {
+            advance();
+        }
+        
+        // After the label, there might be another statement on the same logical line
+        // Check if there's a statement following
+        if (currentToken.type == TOK_IDENTIFIER ||
             currentToken.type == TOK_IF ||
             currentToken.type == TOK_DO ||
             currentToken.type == TOK_CALL ||
             currentToken.type == TOK_GOTO ||
-            currentToken.type == TOK_IDENTIFIER) {
-            // It's a label - restore and parse it
-            currentToken = saved;
-            // Re-advance to get past the number
-            std::string label = currentToken.value;
-            expect(TOK_NUMBER);
-            
-            // Decrease indent for label
-            indentLevel--;
-            indent();
-            output << "label_" << label << ":;\n";
-            indentLevel++;
-            
-            if (currentToken.type == TOK_CONTINUE) {
-                advance();
-            }
-            return;
-        } else {
-            // Not a label, restore and continue
-            // This shouldn't happen in valid code - numbers alone aren't valid statements
-            currentToken = saved;
-            advance();
-            return;
+            currentToken.type == TOK_RETURN) {
+            parseStatement();  // Parse the statement after the label
         }
+        return;
     }
     
     if (currentToken.type == TOK_IDENTIFIER) {
