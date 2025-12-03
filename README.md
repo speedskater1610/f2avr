@@ -23,7 +23,7 @@ The F2AVR compiler translates a subset of Fortran 90 into C code optimized for A
   - clone the github repo `git clone https://www.github.com/speedskater1610/f2avr`
   - go into the repo `cd f2avr`
   - build the project into a exacutable `make`
-- After you have the built exacutable the `arduino_upload.sh` script is very useful for building and uploading programs, to make this a a exacutable so you can run it do the following: `chmod +x arduino_upload.sh `.
+- After you have the built exacutable the `arduino_upload.sh` script is very useful for building and uploading programs, to give it permissions so you can run it do the following: `chmod +x arduino_upload.sh `.
 - This should allow you to be able to run `./arduino_upload.sh tests/led_blink.f90` which if a arduino in plugged in the fortran program should upload.
 - If you run into the problem of running the above command and get the following, you should run `sudo usermod -a -G dialout $USER` or on arch/manjaro `sudo usermod -aG uucp $USER` then log out and log back in, or reboot.
   ```sh
