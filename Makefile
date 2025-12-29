@@ -7,6 +7,7 @@ TARGET = f2avr
 SRCS = src/main.cpp src/lexer.cpp src/parser.cpp
 OBJS = $(SRCS:.cpp=.o)
 
+
 # Header files for dependency tracking
 HEADERS = token.h lexer.h parser.h
 
